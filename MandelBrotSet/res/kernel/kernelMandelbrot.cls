@@ -25,7 +25,9 @@ kernel void mandelbrot(global int* pixels, double fromX, double toX, double from
 			}
 		}
 		
-		value = (int) (((float)(value+1)/(float)depth)*255);
+		//value = (int) (((float)(value+1)/(float)depth)*255);
+		value %= 16;
+		value *= 16;
 		
 		pixels[itemId] = (255 << 24) | (value << 16) | (value << 8) | value;
 		

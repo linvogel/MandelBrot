@@ -17,7 +17,7 @@ public class Main {
 	public static final int deltaHeight = 8;
 	public static final int deltaWidth = 8;
 
-	public static final int maxDepth = 800;
+	public static final int maxDepth = 2500;
 	public static final int minDepth = 200;
 	
 	public static final float vx = 1.22875f;
@@ -33,7 +33,7 @@ public class Main {
 	public final int frameWidth;
 	public final int frameHeight;
 	
-	public int calcDepth = 200;
+	public int calcDepth = 2000;
 	
 	public double borderLeft = -2;
 	public double borderRight = 2;
@@ -206,48 +206,45 @@ public class Main {
 	}
 	
 	public void reset() {
+		
+		float steps = 5*animationSteps;
 
-		double w = borderRight - borderLeft;
-		double h = borderTop - borderBottom;
-		
-		double BL = -2;
-		double BR = 2;
-		double BB = -2;
-		double BT = 2;
-		
-		float steps = 4*animationSteps;
+		double ax = Math.pow(4.0 / (borderRight - borderLeft), 1.0/steps);
+		double ay = Math.pow(4.0 / (borderTop - borderBottom), 1.0/steps);
 
 		stateStack.addFirst(new State(borderLeft, borderRight, borderTop, borderBottom, calcDepth));
 		
-		double stepX1 = (BL - borderLeft) / steps;
-		double stepX2 = (borderRight - BR) / steps;
-		double stepY1 = (BB - borderBottom) / steps;
-		double stepY2 = (borderTop - BT) / steps;
-		
 		for (int i = 1; i <= steps; i++) {
-	
-			double nBL = borderLeft + stepX1;
-			double nBR = borderRight - stepX2;
-			double nBB = borderBottom + stepY1;
-			double nBT = borderTop - stepY2;
+
+			double w = borderRight - borderLeft;
+			double h = borderTop - borderBottom;
 			
-	
-			double m = Math.min(nBR - nBL, nBT - nBB);
-			double r = Math.min(w, h);
+			double rx1 = (borderLeft + 2) / (4 - w);
+			double rx2 = (2 - borderRight) / (4 - w);
+			double ry1 = (borderBottom + 2) / (4 - h);
+			double ry2 = (2 - borderTop) / (4 - h);
+
+			double sx1 = rx1 * w * (1-ax);
+			double sx2 = rx2 * w * (1-ax);
+			double sy1 = ry1 * h * (1-ay);
+			double sy2 = ry2 * h * (1-ay);
 			
-			float f = (float) (r / m);
-			calcDepth = Math.round(calcDepth * (float) Math.log(f));
-	
-			if (calcDepth > maxDepth) calcDepth = maxDepth;
-			if (calcDepth < minDepth) calcDepth = minDepth;
+			borderLeft += sx1;
+			borderRight -= sx2;
+			borderBottom += sy1;
+			borderTop -= sy2;
+			
+			double m = Math.min(borderRight - borderLeft, borderTop - borderTop);
+			//double r = Math.min(w, h);
+			//
+			//float f = (float) (r / m);
+			//calcDepth = Math.round(calcDepth * (float) Math.log(f));
+			//
+			//if (calcDepth > maxDepth) calcDepth = maxDepth;
+			//if (calcDepth < minDepth) calcDepth = minDepth;
 			
 			System.out.println("New Calculation depth: " + calcDepth);
 			System.out.println("Smaller Length: " + m);
-			
-			borderLeft = nBL;
-			borderRight = nBR;
-			borderBottom = nBB;
-			borderTop = nBT;
 			
 			long time = update();
 			swap();
