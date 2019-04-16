@@ -205,6 +205,55 @@ public class Main {
 		swap();
 	}
 	
+	public void reset() {
+
+		double w = borderRight - borderLeft;
+		double h = borderTop - borderBottom;
+		
+		double BL = -2;
+		double BR = 2;
+		double BB = -2;
+		double BT = 2;
+		
+		float steps = 4*animationSteps;
+
+		stateStack.addFirst(new State(borderLeft, borderRight, borderTop, borderBottom, calcDepth));
+		
+		double stepX1 = (BL - borderLeft) / steps;
+		double stepX2 = (borderRight - BR) / steps;
+		double stepY1 = (BB - borderBottom) / steps;
+		double stepY2 = (borderTop - BT) / steps;
+		
+		for (int i = 1; i <= steps; i++) {
+	
+			double nBL = borderLeft + stepX1;
+			double nBR = borderRight - stepX2;
+			double nBB = borderBottom + stepY1;
+			double nBT = borderTop - stepY2;
+			
+	
+			double m = Math.min(nBR - nBL, nBT - nBB);
+			double r = Math.min(w, h);
+			
+			float f = (float) (r / m);
+			calcDepth = Math.round(calcDepth * (float) Math.log(f));
+	
+			if (calcDepth > maxDepth) calcDepth = maxDepth;
+			if (calcDepth < minDepth) calcDepth = minDepth;
+			
+			System.out.println("New Calculation depth: " + calcDepth);
+			System.out.println("Smaller Length: " + m);
+			
+			borderLeft = nBL;
+			borderRight = nBR;
+			borderBottom = nBB;
+			borderTop = nBT;
+			
+			long time = update();
+			swap();
+		}
+	}
+	
 	
 	boolean pressed = false;
 	boolean scrolling = false;
@@ -231,6 +280,7 @@ public class Main {
 				break;
 			case KeyEvent.VK_ADD: increaseDepth(); break;
 			case KeyEvent.VK_SUBTRACT: decreaseDepth(); break;
+			case KeyEvent.VK_R: reset(); break;
 			}
 		}
 		
