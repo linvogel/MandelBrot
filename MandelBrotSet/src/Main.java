@@ -23,6 +23,8 @@ public class Main {
 	public static final float vx = 1.22875f;
 	public static final float vy = 1.235f;
 	
+	public static final float animationSteps = 60;
+	
 	public final float ASPECT_RATIO;
 	
 	public final int imageWidth;
@@ -77,42 +79,59 @@ public class Main {
 	}
 	
 	private void zoom(int fromx, int tox, int fromy, int toy) {
+
 		double w = borderRight - borderLeft;
 		double h = borderTop - borderBottom;
-
-		double nBL = borderLeft + fromx*w/imageWidth;
-		double nBR = borderLeft + tox*w/imageWidth;
-		double nBB = borderBottom + fromy*h/imageHeight;
-		double nBT = borderBottom + toy*h/imageHeight;
 		
+		double BL = borderLeft + fromx*w/imageWidth;
+		double BR = borderLeft + tox*w/imageWidth;
+		double BB = borderBottom + fromy*h/imageHeight;
+		double BT = borderBottom + toy*h/imageHeight;
+
 		stateStack.addFirst(new State(borderLeft, borderRight, borderTop, borderBottom, calcDepth));
-
-		double m = Math.min(nBR - nBL, nBT - nBB);
-		double r = Math.min(w, h);
 		
-		float f = (float) (r / m);
-		calcDepth = Math.round(calcDepth * (float) Math.log(f));
-
-		if (calcDepth > maxDepth) calcDepth = maxDepth;
-		if (calcDepth < minDepth) calcDepth = minDepth;
+		double stepX1 = (BL - borderLeft) / animationSteps;
+		double stepX2 = (borderRight - BR) / animationSteps;
+		double stepY1 = (BB - borderBottom) / animationSteps;
+		double stepY2 = (borderTop - BT) / animationSteps;
 		
-		System.out.println("New Calculation depth: " + calcDepth);
-		System.out.println("Smaller Length: " + m);
-		
-		borderLeft = nBL;
-		borderRight = nBR;
-		borderBottom = nBB;
-		borderTop = nBT;
-		
-		update();
-		swap();
+		for (int i = 1; i <= animationSteps; i++) {
+	
+			double nBL = borderLeft + stepX1;
+			double nBR = borderRight - stepX2;
+			double nBB = borderBottom + stepY1;
+			double nBT = borderTop - stepY2;
+			
+	
+			double m = Math.min(nBR - nBL, nBT - nBB);
+			double r = Math.min(w, h);
+			
+			float f = (float) (r / m);
+			calcDepth = Math.round(calcDepth * (float) Math.log(f));
+	
+			if (calcDepth > maxDepth) calcDepth = maxDepth;
+			if (calcDepth < minDepth) calcDepth = minDepth;
+			
+			System.out.println("New Calculation depth: " + calcDepth);
+			System.out.println("Smaller Length: " + m);
+			
+			borderLeft = nBL;
+			borderRight = nBR;
+			borderBottom = nBB;
+			borderTop = nBT;
+			
+			long time = update();
+			swap();
+		}
 	}
 	
-	private void update() {
+	private long update() {
+		long start = System.currentTimeMillis();
 		int[] pixels = new int[imageWidth*imageHeight];
 		MandelBrot.calculate(pixels, borderLeft, borderRight, borderBottom, borderTop, calcDepth);
 		currentRendered.setRGB(0, 0, imageWidth, imageHeight, pixels, 0, imageWidth);
 		swap();
+		return System.currentTimeMillis() - start;
 	}
 	
 	private void swap() {
@@ -142,7 +161,7 @@ public class Main {
 	
 	public void scrollingPreview() {
 		
-		float d = (float) scrolled / 100f;
+		float d = (float) scrolled / 50f;
 		int x1 = Math.round(mx * d);
 		int y1 = Math.round(my * d);
 		int x2 = Math.round(x1 + (imageWidth * (1-d)));
@@ -154,6 +173,17 @@ public class Main {
 		g.drawRect(x1, y1, x2-x1, y2-y1);
 		g.dispose();
 		
+		swap();
+	}
+	
+	public void scrollZoom() {
+		float d = (float) scrolled / 50f;
+		int x1 = Math.round(mx * d);
+		int y1 = Math.round(my * d);
+		int x2 = Math.round(x1 + (imageWidth * (1-d)));
+		int y2 = Math.round(y1 + (imageHeight * (1-d)));
+		
+		zoom(x1, x2, y1, y2);
 		swap();
 	}
 	
@@ -173,16 +203,6 @@ public class Main {
 		System.out.println("New Calculation Depth: " + calcDepth);
 		update();
 		swap();
-	}
-	
-	public void scrollZoom() {
-		float d = (float) scrolled / 100f;
-		int x1 = Math.round(mx * d);
-		int y1 = Math.round(my * d);
-		int x2 = Math.round(x1 + (imageWidth * (1-d)));
-		int y2 = Math.round(y1 + (imageHeight * (1-d)));
-		
-		zoom(x1, x2, y1, y2);
 	}
 	
 	
@@ -206,8 +226,8 @@ public class Main {
 			case KeyEvent.VK_BACK_SPACE: popStateStack(); break;
 			case KeyEvent.VK_CONTROL:
 				scrolling = false;
-				scrolled = 0;
 				scrollZoom();
+				scrolled = 0;
 				break;
 			case KeyEvent.VK_ADD: increaseDepth(); break;
 			case KeyEvent.VK_SUBTRACT: decreaseDepth(); break;
@@ -232,6 +252,8 @@ public class Main {
 		public void mouseWheelMoved(MouseWheelEvent e) {
 			if (scrolling && !pressed) {
 				scrolled += e.getWheelRotation();
+				if (scrolled > 49) scrolled = 49;
+				if (scrolled < 0) scrolled = 0;
 				mx = e.getX();
 				my = e.getY();
 				scrollingPreview();
