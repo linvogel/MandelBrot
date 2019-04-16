@@ -16,17 +16,22 @@ public class Main {
 	
 	public static final int deltaHeight = 8;
 	public static final int deltaWidth = 8;
+
+	public static final int maxDepth = 800;
+	public static final int minDepth = 200;
 	
 	public static final float vx = 1.22875f;
 	public static final float vy = 1.235f;
 	
-	public int imageWidth;
-	public int imageHeight;
+	public final float ASPECT_RATIO;
 	
-	public int frameWidth;
-	public int frameHeight;
+	public final int imageWidth;
+	public final int imageHeight;
 	
-	public int calcDepth = 100;
+	public final int frameWidth;
+	public final int frameHeight;
+	
+	public int calcDepth = 200;
 	
 	public double borderLeft = -2;
 	public double borderRight = 2;
@@ -34,13 +39,14 @@ public class Main {
 	public double borderTop = 2;
 	
 	private BufferedImage[] framebuffer = new BufferedImage[2];
+	private BufferedImage currentRendered;
 	private int state = 0;
 	private LinkedList<State> stateStack = new LinkedList<State>();
 	
 	private JFrame frame;
 	
 	public static void main(String[] args) {
-		new Main(900, 900);
+		new Main(1024, 768);
 	}
 	
 	public Main(int w, int h) {
@@ -48,8 +54,10 @@ public class Main {
 		this.frameHeight = h;
 		this.imageWidth = w - deltaWidth;
 		this.imageHeight = h - deltaHeight;
+		this.ASPECT_RATIO = (float) imageWidth / (float) imageHeight;
 		framebuffer[0] = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
 		framebuffer[1] = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
+		currentRendered = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
 		MandelBrot.setup(imageWidth, imageHeight);
 		frame = new JFrame("Mandelbrot Set visuals");
 		frame.setSize(frameWidth, frameHeight);
@@ -58,6 +66,7 @@ public class Main {
 		
 		frame.addMouseListener(mouseListener);
 		frame.addMouseMotionListener(mouseMotionListener);
+		frame.addMouseWheelListener(mouseWheelListener);
 		frame.addKeyListener(keyListener);
 		update();
 		update();
@@ -76,7 +85,19 @@ public class Main {
 		double nBB = borderBottom + fromy*h/imageHeight;
 		double nBT = borderBottom + toy*h/imageHeight;
 		
-		stateStack.addFirst(new State(borderLeft, borderRight, borderTop, borderBottom));
+		stateStack.addFirst(new State(borderLeft, borderRight, borderTop, borderBottom, calcDepth));
+
+		double m = Math.min(nBR - nBL, nBT - nBB);
+		double r = Math.min(w, h);
+		
+		float f = (float) (r / m);
+		calcDepth = Math.round(calcDepth * (float) Math.log(f));
+
+		if (calcDepth > maxDepth) calcDepth = maxDepth;
+		if (calcDepth < minDepth) calcDepth = minDepth;
+		
+		System.out.println("New Calculation depth: " + calcDepth);
+		System.out.println("Smaller Length: " + m);
 		
 		borderLeft = nBL;
 		borderRight = nBR;
@@ -84,15 +105,22 @@ public class Main {
 		borderTop = nBT;
 		
 		update();
-		update();
+		swap();
 	}
 	
 	private void update() {
 		int[] pixels = new int[imageWidth*imageHeight];
 		MandelBrot.calculate(pixels, borderLeft, borderRight, borderBottom, borderTop, calcDepth);
-		frame.getGraphics().drawImage(framebuffer[state++], 0, 0, null);
-		state %= 2;
-		framebuffer[state].setRGB(0, 0, imageWidth, imageHeight, pixels, 0, imageWidth);
+		currentRendered.setRGB(0, 0, imageWidth, imageHeight, pixels, 0, imageWidth);
+		swap();
+	}
+	
+	private void swap() {
+		frame.getGraphics().drawImage(getFramebuffer(), 0, 0, null);
+		state = (state + 1) % 2;
+		Graphics g = getFramebuffer().createGraphics();
+		g.drawImage(currentRendered, 0, 0, null);
+		g.dispose();
 	}
 	
 	public void popStateStack() {
@@ -103,15 +131,67 @@ public class Main {
 			this.borderTop = s.borderTop;
 			this.borderLeft = s.borderLeft;
 			this.borderRight = s.borderRight;
+			this.calcDepth = s.depth;
+
+			System.out.println("New Calculation Depth: " + calcDepth);
+			System.out.println("Smaller Length: " + Math.min(borderTop-borderBottom, borderRight-borderLeft));
 			update();
-			update();
+			swap();
 		}
+	}
+	
+	public void scrollingPreview() {
+		
+		float d = (float) scrolled / 100f;
+		int x1 = Math.round(mx * d);
+		int y1 = Math.round(my * d);
+		int x2 = Math.round(x1 + (imageWidth * (1-d)));
+		int y2 = Math.round(y1 + (imageHeight * (1-d)));
+		
+		Graphics g = getFramebuffer().createGraphics();
+		g.setColor(Color.RED);
+		g.drawImage(currentRendered, 0, 0, null);
+		g.drawRect(x1, y1, x2-x1, y2-y1);
+		g.dispose();
+		
+		swap();
+	}
+	
+	public void increaseDepth() {
+		stateStack.addFirst(new State(borderLeft, borderRight, borderTop, borderBottom, calcDepth));
+		calcDepth *= 1.1;
+		if (calcDepth > maxDepth) calcDepth = maxDepth;
+		System.out.println("New Calculation Depth: " + calcDepth);
+		update();
+		swap();
+	}
+	
+	public void decreaseDepth() {
+		stateStack.addFirst(new State(borderLeft, borderRight, borderTop, borderBottom, calcDepth));
+		calcDepth *= 1.0/1.1;
+		if (calcDepth < minDepth) calcDepth = minDepth;
+		System.out.println("New Calculation Depth: " + calcDepth);
+		update();
+		swap();
+	}
+	
+	public void scrollZoom() {
+		float d = (float) scrolled / 100f;
+		int x1 = Math.round(mx * d);
+		int y1 = Math.round(my * d);
+		int x2 = Math.round(x1 + (imageWidth * (1-d)));
+		int y2 = Math.round(y1 + (imageHeight * (1-d)));
+		
+		zoom(x1, x2, y1, y2);
 	}
 	
 	
 	boolean pressed = false;
+	boolean scrolling = false;
 	int mx = 0;
 	int my = 0;
+	
+	int scrolled = 0;
 	
 	KeyListener keyListener = new KeyListener() {
 		
@@ -123,13 +203,26 @@ public class Main {
 		@Override
 		public void keyReleased(KeyEvent e) {
 			switch (e.getKeyCode()) {
-			case KeyEvent.VK_BACK_SPACE: popStateStack();
+			case KeyEvent.VK_BACK_SPACE: popStateStack(); break;
+			case KeyEvent.VK_CONTROL:
+				scrolling = false;
+				scrolled = 0;
+				scrollZoom();
+				break;
+			case KeyEvent.VK_ADD: increaseDepth(); break;
+			case KeyEvent.VK_SUBTRACT: decreaseDepth(); break;
 			}
 		}
 		
 		@Override
 		public void keyPressed(KeyEvent e) {
-			
+			switch (e.getKeyCode()) {
+			case KeyEvent.VK_CONTROL:
+				if (!scrolling) {
+					scrolling = true;
+				}
+				break;
+			}
 		}
 	};
 	
@@ -137,7 +230,12 @@ public class Main {
 		
 		@Override
 		public void mouseWheelMoved(MouseWheelEvent e) {
-			
+			if (scrolling && !pressed) {
+				scrolled += e.getWheelRotation();
+				mx = e.getX();
+				my = e.getY();
+				scrollingPreview();
+			}
 		}
 	};
 	
@@ -150,7 +248,7 @@ public class Main {
 
 		@Override
 		public void mousePressed(MouseEvent e) {
-			if (!pressed) {
+			if (!pressed && !scrolling) {
 				pressed = true;
 				mx = e.getX();
 				my = e.getY();
@@ -160,18 +258,22 @@ public class Main {
 		@Override
 		public void mouseReleased(MouseEvent e) {
 			pressed = false;
-			
-			int tx = e.getX();
-			int ty = e.getY();
-			
-			int dx = tx - mx;
-			int dy = ty - my;
-			
-			
-			
-			if (dx > 0 && dy > 0) {
-				zoom(mx, tx, my, ty);
-				System.out.printf("Zooming into (%d, %d) - (%d, %d)\n", mx, my, tx, ty);
+				
+			if (!scrolling) {
+				int tx = e.getX();
+				int ty = e.getY();
+				
+				int dx = tx - mx;
+				int dy = ty - my;
+				
+				int delta = Math.min(Math.round(dx*ASPECT_RATIO), dy);
+				
+				if (dx > 0 && dy > 0) {
+					zoom(mx, mx+Math.round(delta*ASPECT_RATIO), my, my+delta);
+					System.out.printf("Zooming into (%d, %d) - (%d, %d)\n", mx, my, mx+Math.round(delta*ASPECT_RATIO), my+delta);
+				} else {
+					swap();
+				}
 			}
 			
 		}
@@ -190,17 +292,28 @@ public class Main {
 		
 		@Override
 		public void mouseMoved(MouseEvent e) {
-			
-			
+			if (!pressed && scrolling) {
+				mx = e.getX();
+				my = e.getY();
+				scrollingPreview();
+			}
 		}
 		
 		@Override
 		public void mouseDragged(MouseEvent e) {
-			if (pressed) {
+			if (pressed && !scrolling) {
 				Graphics g = getFramebuffer().createGraphics();
 				g.setColor(Color.RED);
-				g.drawRect(mx, my, e.getX() - mx, e.getY() - my);
-				update();
+				int delta = Math.min(e.getX()-mx, e.getY()-my);
+				g.drawRect(mx, my, Math.round(delta*ASPECT_RATIO), delta);
+				g.drawOval(mx-3, my-3, 6, 6);
+				g.drawOval(mx+Math.round(delta*ASPECT_RATIO)-3, my+delta-3, 6, 6);
+				g.dispose();
+				swap();
+			} else if (!pressed && scrolling) {
+				mx = e.getX();
+				my = e.getY();
+				scrollingPreview();
 			}
 		}
 	};
@@ -210,12 +323,14 @@ public class Main {
 		double borderRight;
 		double borderTop;
 		double borderBottom;
+		int depth;
 		
-		public State(double borderLeft, double borderRight, double borderTop, double borderBottom) {
+		public State(double borderLeft, double borderRight, double borderTop, double borderBottom, int depth) {
 			this.borderLeft = borderLeft;
 			this.borderRight = borderRight;
 			this.borderTop = borderTop;
 			this.borderBottom = borderBottom;
+			this.depth = depth;
 		}
 		
 	}
