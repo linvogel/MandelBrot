@@ -8,11 +8,12 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.math.BigDecimal;
 import java.util.LinkedList;
+import java.util.Scanner;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
@@ -29,6 +30,8 @@ public class Main {
 	public static final float vy = 1.235f;
 	
 	public static final float animationSteps = 60;
+	
+	private static File counter = new File("res/data/counter");
 	
 	public final float ASPECT_RATIO;
 	
@@ -258,22 +261,41 @@ public class Main {
 	}
 	
 	public void imageExport() {
-		int width = 3000;
-		int height = 3000;
+		int width = 2000;
+		int height = 2000;
 		
 		int[] pixels = new int[width*height];
 		
-		MandelBrot.calculateBig(pixels, BigDecimal.valueOf(borderLeft), BigDecimal.valueOf(borderRight), BigDecimal.valueOf(borderBottom), BigDecimal.valueOf(borderTop), 1000, width, height);
+		MandelBrot.calculateBig(pixels, BigDecimal.valueOf(borderLeft), BigDecimal.valueOf(borderRight), BigDecimal.valueOf(borderBottom), BigDecimal.valueOf(borderTop), 512, width, height);
 		
 		BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
 		out.setRGB(0, 0, width, height, pixels, 0, width);
-		System.out.println("Writing...");
-		try {
-			ImageIO.write(out, "png", new File("Mandelbrot-Zoom-out.png"));
-		} catch (IOException e) {
-			e.printStackTrace();
+		synchronized (counter) {
+			System.out.println("Writing...");
+			try {
+				PrintWriter p;
+				int i = 0;
+				if (!counter.exists()) {
+					counter.createNewFile();
+					p = new PrintWriter(counter);
+					p.println(1);
+					p.flush();
+				} else {
+					Scanner scanner = new Scanner(counter);
+					i = scanner.nextInt();
+					scanner.close();
+					p = new PrintWriter(counter);
+					p.println((i+1));
+					p.flush();
+					p.close();
+				}
+				
+				ImageIO.write(out, "png", new File("Mandelbrot-Zoom-out-" + i + ".png"));
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			System.out.println("Done.");
 		}
-		System.out.println("Done.");
 		
 	}
 	

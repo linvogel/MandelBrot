@@ -61,7 +61,7 @@ public class MainTest {
 		
 		long commandQueue = CL20.clCreateCommandQueue(context, device, CL20.CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, errcode);
 		
-		long program = CL20.clCreateProgramWithSource(context, Utils.loadText("res/kernel/kernelMandelbrot.cls"), null);
+		long program = CL20.clCreateProgramWithSource(context, Utils.loadText("res/opencl/arraySum.cls"), null);
 		int buildOutput = CL20.clBuildProgram(program, device, "", null, 0);
 		
 		if (debug) System.out.println(context);
@@ -69,7 +69,7 @@ public class MainTest {
 		if (debug) System.out.println(program);
 
 		if (debug) System.out.println(buildOutput == 0 ? "Building successful" : "Build error");
-		long kernel = CL10.clCreateKernel(program, "mandelbrot", errcode);
+		long kernel = CL10.clCreateKernel(program, "sum", errcode);
 		
 		
 		//initialize the data to be worked on
