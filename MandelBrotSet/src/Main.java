@@ -261,8 +261,8 @@ public class Main {
 	}
 	
 	public void imageExport() {
-		int width = 2000;
-		int height = 2000;
+		int width = 100;
+		int height = 100;
 		
 		int[] pixels = new int[width*height];
 		
@@ -290,7 +290,7 @@ public class Main {
 					p.close();
 				}
 				
-				ImageIO.write(out, "png", new File("Mandelbrot-Zoom-out-" + i + ".png"));
+				ImageIO.write(out, "png", new File("images/Mandelbrot-Zoom-out-" + i + ".png"));
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
