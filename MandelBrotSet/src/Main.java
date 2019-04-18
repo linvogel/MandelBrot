@@ -8,6 +8,8 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.LinkedList;
 
 import javax.swing.JFrame;
@@ -128,7 +130,8 @@ public class Main {
 	private long update() {
 		long start = System.currentTimeMillis();
 		int[] pixels = new int[imageWidth*imageHeight];
-		MandelBrot.calculate(pixels, borderLeft, borderRight, borderBottom, borderTop, calcDepth);
+		//MandelBrot.calculate(pixels, borderLeft, borderRight, borderBottom, borderTop, calcDepth);
+		MandelBrot.calculateBigDecimal(pixels, BigDecimal.valueOf(borderLeft).setScale(100, RoundingMode.HALF_UP), BigDecimal.valueOf(borderRight).setScale(100, RoundingMode.HALF_UP), BigDecimal.valueOf(borderBottom).setScale(100, RoundingMode.HALF_UP), BigDecimal.valueOf(borderTop).setScale(100, RoundingMode.HALF_UP), calcDepth);
 		currentRendered.setRGB(0, 0, imageWidth, imageHeight, pixels, 0, imageWidth);
 		swap();
 		return System.currentTimeMillis() - start;
