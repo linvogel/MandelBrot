@@ -8,8 +8,13 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.util.LinkedList;
 
+import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 
 public class Main {
@@ -72,6 +77,7 @@ public class Main {
 		frame.addKeyListener(keyListener);
 		update();
 		update();
+		
 	}
 	
 	BufferedImage getFramebuffer() {
@@ -251,6 +257,26 @@ public class Main {
 		}
 	}
 	
+	public void imageExport() {
+		int width = 3000;
+		int height = 3000;
+		
+		int[] pixels = new int[width*height];
+		
+		MandelBrot.calculateBig(pixels, BigDecimal.valueOf(borderLeft), BigDecimal.valueOf(borderRight), BigDecimal.valueOf(borderBottom), BigDecimal.valueOf(borderTop), 1000, width, height);
+		
+		BufferedImage out = new BufferedImage(width, height, BufferedImage.TYPE_INT_BGR);
+		out.setRGB(0, 0, width, height, pixels, 0, width);
+		System.out.println("Writing...");
+		try {
+			ImageIO.write(out, "png", new File("Mandelbrot-Zoom-out.png"));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println("Done.");
+		
+	}
+	
 	
 	boolean pressed = false;
 	boolean scrolling = false;
@@ -278,6 +304,7 @@ public class Main {
 			case KeyEvent.VK_ADD: increaseDepth(); break;
 			case KeyEvent.VK_SUBTRACT: decreaseDepth(); break;
 			case KeyEvent.VK_R: reset(); break;
+			case KeyEvent.VK_P: imageExport(); break;
 			}
 		}
 		

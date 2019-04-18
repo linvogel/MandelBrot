@@ -1,6 +1,14 @@
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.nio.ByteBuffer;
 import java.nio.DoubleBuffer;
 import java.nio.IntBuffer;
+import java.util.LinkedList;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
@@ -16,6 +24,8 @@ public class MandelBrot {
 	private static long commandQueue;
 	private static long program;
 	private static long kernel;
+
+	public static MathContext mc = new MathContext(256);
 	
 	public static void setup(int width, int height) {
 		
@@ -116,6 +126,88 @@ public class MandelBrot {
 		buffer.get(pixels);
 		
 		return pixels;
+	}
+	
+	public static int[] calculateBig(int[] pixels, BigDecimal left, BigDecimal right, BigDecimal bottom, BigDecimal top, int calcDepth, int width, int height) {
+		
+		ExecutorService service = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()*2);
+		LinkedList<Future> futures = new LinkedList<Future>();
+		
+		for (int y = 0; y < height; y++) {
+			futures.add(service.submit(new LineCalculatorCallable(pixels, y, width, height, left, right, bottom, top, calcDepth)));
+		}
+		
+		while (!futures.isEmpty()) {
+			try {
+				futures.removeFirst().get();
+			} catch (InterruptedException | ExecutionException e) {
+				e.printStackTrace();
+			}
+		}
+		
+		System.out.println("Picture Rendered...");
+		
+		return pixels;
+	}
+}
+
+class LineCalculatorCallable implements Callable<Void> {
+	
+	BigDecimal left, right, top, bottom;
+	int calcDepth;
+	int width, height, y;
+	int[] pixels;
+	
+	
+	public LineCalculatorCallable(int[] pixels, int y, int width, int height, BigDecimal left, BigDecimal right, BigDecimal bottom, BigDecimal top, int calcDepth) {
+		this.left = left;
+		this.right = right;
+		this.top = top;
+		this.bottom = bottom;
+		this.calcDepth = calcDepth;
+		this.width = width;
+		this.height = height;
+		this.y = y;
+		this.pixels = pixels;
+	}
+	
+	@Override
+	public Void call() throws Exception {
+
+		BigDecimal stepX = right.subtract(left).divide(BigDecimal.valueOf(width), MandelBrot.mc);
+		BigDecimal stepY = top.subtract(bottom).divide(BigDecimal.valueOf(height), MandelBrot.mc);
+		
+		BigDecimal x0 = left;
+		BigDecimal y0 = bottom.add(stepY.multiply(BigDecimal.valueOf(y), MandelBrot.mc));
+		
+		
+		for (int x = 0; x < width; x++) {
+			BigComplexNumber state = new BigComplexNumber();
+			BigComplexNumber number = new BigComplexNumber(x0, y0);
+			
+			int value = -1;
+			
+			for (int i = 0; i < calcDepth; i++) {
+				state = state.multiply(state).add(number);
+				
+				if (state.absSq().compareTo(BigDecimal.valueOf(4)) > 0) {
+					value = i;
+					break;
+				}
+			}
+			
+			value = map(value, -1, calcDepth, 0, 255);
+			
+			pixels[y*width + x] = (0xFF << 24) | (value << 16) | (value << 8) | value;
+			
+			x0 = x0.add(stepX, MandelBrot.mc);
+		}
+		System.out.println("Progress: " + y + "/" + height);
+		return null;
+	}
+	
+	static int map(float value, float vstart, float vstop, float ostart, float ostop) {
+		return Math.round((value-vstart)/(vstop-vstart)*(ostop-ostart)+ostart);
 	}
 	
 }
